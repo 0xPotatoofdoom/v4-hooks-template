@@ -14,7 +14,7 @@ import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol"
 import {DeployPermit2} from "permit2/test/utils/DeployPermit2.sol";
 import {IERC721Permit_v4} from "v4-periphery/src/interfaces/IERC721Permit_v4.sol";
 import {IEIP712_v4} from "v4-periphery/src/interfaces/IEIP712_v4.sol";
-import {ERC721PermitHash} from "lib/v4-periphery/src/libraries/ERC721PermitHash.sol";
+import {ERC721PermitHashLibrary as ERC721PermitHash} from "lib/v4-periphery/src/libraries/ERC721PermitHash.sol";
 
 /// @notice A shared test contract that wraps the v4-core deployers contract and exposes basic liquidity operations on posm.
 contract Fixtures is Deployers, DeployPermit2 {
