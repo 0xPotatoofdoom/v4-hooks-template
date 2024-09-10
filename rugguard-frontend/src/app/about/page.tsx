@@ -22,7 +22,7 @@ const About: React.FC = () => {
         Built by <a href="https://twitter.com/0xPotatoofdoom" target="_blank" rel="noopener noreferrer">0xPotatoofdoom</a> and <a href="https://twitter.com/rax090909" target="_blank" rel="noopener noreferrer">rax090909</a>
       </p>
       <p className="mb-2 text-gray-800">
-        This project is not affiliated with Uniswap but uses Uniswap V4 hooks and was made as part of <a href="https://atrium.academy/uniswap" target="_blank" rel="noopener noreferrer">Atrium Academy</a>'s 2nd cohort that was funded by grants from <a href="https://uniswap.org/grants/" target="_blank" rel="noopener noreferrer">Uniswap Foundation</a>.
+        This project is not affiliated with Uniswap but uses Uniswap V4 hooks and was made as part of <a href="https://atrium.academy/uniswap" target="_blank" rel="noopener noreferrer">Atrium Academy</a>&apos;s 2nd cohort that was funded by grants from <a href="https://uniswap.org/grants/" target="_blank" rel="noopener noreferrer">Uniswap Foundation</a>.
       </p>
     </div>
   );
