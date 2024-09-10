@@ -16,17 +16,17 @@ const PoolOverview: React.FC = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pool</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk Score</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Liquidity</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Pool</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Risk Score</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Liquidity</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {pools.map((pool) => (
               <tr key={pool.id}>
-                <td className="px-6 py-4 whitespace-nowrap">{pool.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{pool.riskScore}</td>
-                <td className="px-6 py-4 whitespace-nowrap">${pool.liquidity}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-gray-800">{pool.name}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-gray-800">{pool.riskScore}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-gray-800">${pool.liquidity}</td>
               </tr>
             ))}
           </tbody>
