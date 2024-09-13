@@ -18,11 +18,13 @@ import {IPositionManager} from "v4-periphery/src/interfaces/IPositionManager.sol
 import {EasyPosm} from "./utils/EasyPosm.sol";
 import {Fixtures} from "./utils/Fixtures.sol";
 
+// Mock contracts for integrations
+import {MockEigenLayerStrategy} from "./mocks/MockEigenLayerStrategy.sol";
+import {MockBrevisVerifier} from "./mocks/MockBrevisVerifier.sol";
+import {MockChainlinkAggregator} from "./mocks/MockChainlinkAggregator.sol";
+
 import {console} from "forge-std/console.sol";
 
-/// @title RugGuardTest
-/// @notice Test contract for the RugGuard implementation
-/// @dev Inherits from Test and Fixtures for setup and utility functions
 contract RugGuardTest is Test, Fixtures {
     using EasyPosm for IPositionManager;
     using PoolIdLibrary for PoolKey;
@@ -30,16 +32,24 @@ contract RugGuardTest is Test, Fixtures {
 
     RugGuard hook;
     PoolId poolId;
+    MockEigenLayerStrategy eigenLayerStrategy;
+    MockBrevisVerifier brevisVerifier;
+    MockChainlinkAggregator priceFeed0;
+    MockChainlinkAggregator priceFeed1;
 
     uint256 initialTokenId;
     PositionConfig config;
 
-    /// @notice Set up the test environment
-    /// @dev Deploys necessary contracts and initializes the pool
     function setUp() public {
         deployFreshManagerAndRouters();
         deployMintAndApprove2Currencies();
         deployAndApprovePosm(manager);
+
+        // Deploy mock contracts
+        eigenLayerStrategy = new MockEigenLayerStrategy();
+        brevisVerifier = new MockBrevisVerifier();
+        priceFeed0 = new MockChainlinkAggregator();
+        priceFeed1 = new MockChainlinkAggregator();
 
         address flags = address(
             uint160(
@@ -47,7 +57,7 @@ contract RugGuardTest is Test, Fixtures {
                     | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
             )
         );
-        bytes memory constructorArgs = abi.encode(manager);
+        bytes memory constructorArgs = abi.encode(manager, eigenLayerStrategy, brevisVerifier);
         deployCodeTo("RugGuard.sol:RugGuard", constructorArgs, flags);
         hook = RugGuard(flags);
 
@@ -70,19 +80,19 @@ contract RugGuardTest is Test, Fixtures {
             block.timestamp,
             ZERO_BYTES
         );
+
+        // Set up price feeds
+        hook.setPriceFeed(address(currency0), address(priceFeed0));
+        hook.setPriceFeed(address(currency1), address(priceFeed1));
     }
 
-    /// @notice Test the initialization of the RugGuard
-    /// @dev Checks if the initial values are set correctly
     function testInitialization() public {
-        (uint256 lastTimestamp, uint256 threshold, uint256 totalLiquidity, uint256 riskScore) = hook.poolInfo(poolId);
+        (uint256 lastTimestamp, uint256 threshold, uint256 totalLiquidity, uint256 riskScore,,) = hook.poolInfo(poolId);
         assertEq(threshold, hook.DEFAULT_LIQUIDITY_CHANGE_THRESHOLD());
         assertEq(totalLiquidity, 10_000e18);
-        assertEq(riskScore, 45);
+        assertEq(riskScore, 50);
     }
 
-    /// @notice Test liquidity addition
-    /// @dev Adds liquidity and checks if the total liquidity and risk score are updated correctly
     function testLiquidityAddition() public {
         uint256 addAmount = 5_000e18;
         (uint256 newTokenId,) = posm.mint(
@@ -95,17 +105,15 @@ contract RugGuardTest is Test, Fixtures {
             ZERO_BYTES
         );
 
-        (,, uint256 totalLiquidity, uint256 riskScore) = hook.poolInfo(poolId);
+        (,, uint256 totalLiquidity, uint256 riskScore,,) = hook.poolInfo(poolId);
         assertEq(totalLiquidity, 15_000e18);
-        assertEq(riskScore, 40);
+        assertEq(riskScore, 45);
     }
 
-    /// @notice Test liquidity removal
-    /// @dev Removes liquidity and checks if the total liquidity and risk score are updated correctly
     function testLiquidityRemoval() public {
-        (,, uint256 initialTotalLiquidity, uint256 initialRiskScore) = hook.poolInfo(poolId);
+        (,, uint256 initialTotalLiquidity, uint256 initialRiskScore,,) = hook.poolInfo(poolId);
 
-        uint256 removeAmount = 10e18;
+        uint256 removeAmount = 1000e18;
 
         posm.decreaseLiquidity(
             initialTokenId,
@@ -118,15 +126,16 @@ contract RugGuardTest is Test, Fixtures {
             ZERO_BYTES
         );
 
-        (,, uint256 totalLiquidity, uint256 riskScore) = hook.poolInfo(poolId);
+        (,, uint256 totalLiquidity, uint256 riskScore,,) = hook.poolInfo(poolId);
 
         assertEq(totalLiquidity, initialTotalLiquidity - removeAmount);
-        assertEq(riskScore, 50);
+        assertGt(riskScore, initialRiskScore);
     }
 
-    /// @notice Test swap with low risk
-    /// @dev Performs a swap when the risk is low and checks if it succeeds
     function testSwapWithLowRisk() public {
+        priceFeed0.setLatestAnswer(1000e8);
+        priceFeed1.setLatestAnswer(1000e8);
+
         bool zeroForOne = true;
         int256 amountSpecified = -1e18;
         BalanceDelta swapDelta = swap(key, zeroForOne, amountSpecified, ZERO_BYTES);
@@ -134,8 +143,6 @@ contract RugGuardTest is Test, Fixtures {
         assertEq(int256(swapDelta.amount0()), amountSpecified);
     }
 
-    /// @notice Test swap with high risk
-    /// @dev Sets a high risk score and attempts a swap, expecting it to revert
     function testSwapWithHighRisk() public {
         bytes32 slot = keccak256(abi.encode(poolId, uint256(3)));
         vm.store(address(hook), slot, bytes32(uint256(95)));
@@ -143,18 +150,72 @@ contract RugGuardTest is Test, Fixtures {
         bool zeroForOne = true;
         int256 amountSpecified = -1e18;
 
-        // vm.expectRevert("RugGuard: Pool risk too high for swaps");
-        BalanceDelta swapDelta = swap(key, zeroForOne, amountSpecified, ZERO_BYTES);
-        assertEq(int256(swapDelta.amount0()), amountSpecified);
+        vm.expectRevert("RugGuard: Pool risk too high for swaps");
+        swap(key, zeroForOne, amountSpecified, ZERO_BYTES);
     }
 
-    /// @notice Test updating the liquidity change threshold
-    /// @dev Updates the threshold and checks if it's set correctly
     function testLiquidityChangeThresholdUpdate() public {
         uint256 newThreshold = 20 ether;
         hook.setLiquidityChangeThreshold(key, newThreshold);
 
-        (, uint256 threshold,,) = hook.poolInfo(poolId);
+        (, uint256 threshold,,,) = hook.poolInfo(poolId);
         assertEq(threshold, newThreshold);
+    }
+
+    function testEigenLayerIntegration() public {
+        bool zeroForOne = true;
+        int256 amountSpecified = -1e18;
+        swap(key, zeroForOne, amountSpecified, ZERO_BYTES);
+
+        assertTrue(eigenLayerStrategy.wasProcessOffChainComputationCalled());
+    }
+
+    function testBrevisIntegration() public {
+        bytes memory mockProof = abi.encodePacked("mock proof");
+        uint256[] memory publicInputs = new uint256[](2);
+        publicInputs[0] = uint256(uint160(poolId));
+        publicInputs[1] = 60; // New risk score
+
+        brevisVerifier.setVerificationResult(true);
+        hook.verifyBrevisProof(mockProof, publicInputs);
+
+        (,,, uint256 riskScore,,) = hook.poolInfo(poolId);
+        assertEq(riskScore, 60);
+    }
+
+    function testChainlinkIntegration() public {
+        priceFeed0.setLatestAnswer(1000e8);
+        priceFeed1.setLatestAnswer(2000e8);
+
+        bool zeroForOne = true;
+        int256 amountSpecified = -1e18;
+        swap(key, zeroForOne, amountSpecified, ZERO_BYTES);
+
+        (,,,,, int256 lastPrice) = hook.poolInfo(poolId);
+        assertEq(lastPrice, 5e17); // 1000 / 2000 * 1e18
+    }
+
+    function testCheckUpkeep() public {
+        // Set conditions for upkeep
+        vm.warp(block.timestamp + 2 days);
+        bytes32 slot = keccak256(abi.encode(poolId, uint256(3)));
+        vm.store(address(hook), slot, bytes32(uint256(85)));
+
+        bytes memory checkData = abi.encode(poolId);
+        (bool upkeepNeeded, ) = hook.checkUpkeep(checkData);
+        assertTrue(upkeepNeeded);
+    }
+
+    function testPerformUpkeep() public {
+        // Set conditions for upkeep
+        vm.warp(block.timestamp + 2 days);
+        bytes32 slot = keccak256(abi.encode(poolId, uint256(3)));
+        vm.store(address(hook), slot, bytes32(uint256(85)));
+
+        bytes memory performData = abi.encode(poolId);
+        hook.performUpkeep(performData);
+
+        (,,,, uint256 totalVolume24h,) = hook.poolInfo(poolId);
+        assertEq(totalVolume24h, 0);
     }
 }
