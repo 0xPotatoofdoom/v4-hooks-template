@@ -34,6 +34,11 @@ contract RugGuardTest is Test, Fixtures {
     uint256 initialTokenId;
     PositionConfig config;
 
+    // Event definitions
+    event LiquidityChanged(PoolId indexed poolId, int256 liquidityDelta, uint256 newTotalLiquidity);
+    event RiskScoreUpdated(PoolId indexed poolId, uint256 newRiskScore);
+    event ThresholdUpdated(PoolId indexed poolId, uint256 newThreshold);
+
     /// @notice Set up the test environment
     /// @dev Deploys necessary contracts and initializes the pool
     function setUp() public {

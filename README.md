@@ -21,3 +21,6 @@
 
 4. Customizable Thresholds:
 	Allows setting custom liquidity change thresholds for each pool.
+
+## Potential improvements
+1. Incentivise users to add liquidity to the pool incase the risk score of the pool is high. using `afterAddLiquidityReturnDelta`. 

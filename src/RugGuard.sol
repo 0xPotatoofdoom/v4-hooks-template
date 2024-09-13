@@ -28,15 +28,19 @@ contract RugGuard is BaseHook {
 
     /// @notice Default threshold for liquidity changes
     uint256 public constant DEFAULT_LIQUIDITY_CHANGE_THRESHOLD = 10 ether;
+
     /// @notice Cooldown period between significant liquidity changes
     uint256 public constant COOLDOWN_PERIOD = 1 days;
+
     /// @notice Maximum risk score a pool can have
     uint256 public constant MAX_RISK_SCORE = 100;
 
     /// @notice Emitted when liquidity changes in a pool
     event LiquidityChanged(PoolId indexed poolId, int256 liquidityDelta, uint256 newTotalLiquidity);
+
     /// @notice Emitted when a pool's risk score is updated
     event RiskScoreUpdated(PoolId indexed poolId, uint256 newRiskScore);
+
     /// @notice Emitted when a pool's liquidity change threshold is updated
     event ThresholdUpdated(PoolId indexed poolId, uint256 newThreshold);
 
