@@ -142,7 +142,7 @@ contract RugGuard is BaseHook, Ownable, ReentrancyGuard, AutomationCompatibleInt
         require(pool.riskScore < MAX_RISK_SCORE, "RugGuard: Pool risk too high for swaps");
         require(pool.totalLiquidity >= MIN_LIQUIDITY_THRESHOLD, "RugGuard: Insufficient liquidity");
 
-        updateVolume(poolId, params.amountIn);
+        updateVolume(poolId, params.amountSpecified);
         updatePrice(poolId, key.currency0, key.currency1);
 
         return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
@@ -154,10 +154,10 @@ contract RugGuard is BaseHook, Ownable, ReentrancyGuard, AutomationCompatibleInt
         returns (bytes4, int128)
     {
         PoolId poolId = key.toId();
-        emit SwapExecuted(poolId, msg.sender, uint256(params.amountIn), uint256(uint128(-delta.amount1())));
+        emit SwapExecuted(poolId, msg.sender, uint256(params.amountSpecified), uint256(uint128(-delta.amount1())));
         
         // Trigger off-chain computation via EigenLayer
-        bytes memory computationInput = abi.encode(poolId, params.amountIn, uint256(uint128(-delta.amount1())));
+        bytes memory computationInput = abi.encode(poolId, params.amountSpecified, uint256(uint128(-delta.amount1())));
         bytes memory result = eigenLayerStrategy.processOffChainComputation(computationInput);
         emit OffChainComputationProcessed(poolId, result);
 
