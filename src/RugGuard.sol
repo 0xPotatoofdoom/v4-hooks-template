@@ -12,23 +12,21 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Currency} from "v4-core/src/types/Currency.sol";
 
 // Chainlink Imports
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {AutomationCompatibleInterface} from "@chainlink/contracts/src/v0.8/interfaces/AutomationCompatibleInterface.sol";
 
-// EigenLayer Interface (mock)
-interface IEigenLayerStrategy {
-    function processOffChainComputation(bytes calldata _input) external returns (bytes memory);
-}
+import {IBrevisVerifier} from "./interfaces/IBrevisVerifier.sol";
+import {IEigenLayerStrategy} from "./interfaces/IEigenLayerStrategy.sol";
 
-// Brevis Interface (mock)
-interface IBrevisVerifier {
-    function verifyProof(bytes calldata _proof, uint256[] calldata _publicInputs) external view returns (bool);
-}
-
-/// @title RugGuard
-/// @notice A contract to protect against rug pulls in Uniswap V4 pools with integrations
+/**
+ * @title Rugguard
+ * @notice A contract to protect against rug pulls in Uniswap V4 pools with integrations
+ * @dev Implements BaseHook, Ownable, ReentrancyGuard, and AutomationCompatibleInterface
+ * @author rakshithvk19 and 0xPotatoofdoom
+ */
 contract RugGuard is BaseHook, Ownable, ReentrancyGuard, AutomationCompatibleInterface {
     using PoolIdLibrary for PoolKey;
     using SafeERC20 for IERC20;
@@ -113,7 +111,8 @@ contract RugGuard is BaseHook, Ownable, ReentrancyGuard, AutomationCompatibleInt
             lastVolumeUpdateTimestamp: block.timestamp,
             lastPrice: 0
         });
-        return BaseHook.afterInitialize.selector;
+
+        return this.afterInitialize.selector;
     }
 
     function beforeAddLiquidity(
@@ -122,7 +121,24 @@ contract RugGuard is BaseHook, Ownable, ReentrancyGuard, AutomationCompatibleInt
         IPoolManager.ModifyLiquidityParams memory params,
         bytes calldata
     ) external override returns (bytes4) {
-        return _handleLiquidityChange(key, params.liquidityDelta);
+        // return _handleLiquidityChange(key, params.liquidityDelta);
+        return BaseHook.beforeAddLiquidity.selector;
+    }
+
+    function afterAddLiquidity(
+        address,
+        PoolKey calldata key,
+        IPoolManager.ModifyLiquidityParams memory params,
+        BalanceDelta delta,
+        bytes calldata
+    ) external override returns (bytes4, BalanceDelta) {
+        PoolId poolId = key.toId();
+        PoolInfo storage pool = poolInfo[poolId];
+
+        updatePoolInfo(poolId, params.liquidityDelta);
+        // _handleLiquidityChange(key, params.liquidityDelta);
+
+        return (BaseHook.afterAddLiquidity.selector, delta);
     }
 
     function beforeRemoveLiquidity(
@@ -131,7 +147,18 @@ contract RugGuard is BaseHook, Ownable, ReentrancyGuard, AutomationCompatibleInt
         IPoolManager.ModifyLiquidityParams memory params,
         bytes calldata
     ) external override returns (bytes4) {
-        return _handleLiquidityChange(key, -params.liquidityDelta);
+        _handleLiquidityChange(key, params.liquidityDelta);
+        return this.beforeRemoveLiquidity.selector;
+    }
+
+    function afterRemoveLiquidity(
+        address,
+        PoolKey calldata key,
+        IPoolManager.ModifyLiquidityParams memory params,
+        BalanceDelta delta,
+        bytes calldata
+    ) external override returns (bytes4, BalanceDelta) {
+        return (this.afterRemoveLiquidity.selector, delta);
     }
 
     function beforeSwap(address, PoolKey calldata key, IPoolManager.SwapParams calldata params, bytes calldata)
@@ -145,8 +172,18 @@ contract RugGuard is BaseHook, Ownable, ReentrancyGuard, AutomationCompatibleInt
         require(pool.riskScore < MAX_RISK_SCORE, "RugGuard: Pool risk too high for swaps");
         require(pool.totalLiquidity >= MIN_LIQUIDITY_THRESHOLD, "RugGuard: Insufficient liquidity");
 
-        updateVolume(poolId, params.amountSpecified);
-        updatePrice(poolId, key.currency0, key.currency1);
+        uint256 absAmountSpecified = uint256(params.amountSpecified);
+
+        updateVolume(poolId, absAmountSpecified);
+
+        // address token0 = address(key.currency0);
+        // address token1 = address(key.currency1);
+
+        // updatePrice(poolId, token0, token1);
+        address token0 = Currency.unwrap(key.currency0);
+        address token1 = Currency.unwrap(key.currency1);
+
+        updatePrice(poolId, token0, token1);
 
         return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
     }
@@ -182,7 +219,8 @@ contract RugGuard is BaseHook, Ownable, ReentrancyGuard, AutomationCompatibleInt
 
         updatePoolInfo(poolId, liquidityDelta);
 
-        return liquidityDelta > 0 ? this.beforeAddLiquidity.selector : this.beforeRemoveLiquidity.selector;
+        // Always return the selector of the calling function
+        return msg.sig;
     }
 
     function updatePoolInfo(PoolId poolId, int256 liquidityDelta) internal {
@@ -292,6 +330,7 @@ contract RugGuard is BaseHook, Ownable, ReentrancyGuard, AutomationCompatibleInt
     // Brevis integration: Verify zkSNARK proof
     function verifyBrevisProof(bytes calldata _proof, uint256[] calldata _publicInputs) external {
         bool verified = brevisVerifier.verifyProof(_proof, _publicInputs);
+        // PoolId poolId = PoolId.wrap(bytes32(_publicInputs[0]));
         PoolId poolId = PoolId.wrap(bytes32(_publicInputs[0]));
         emit ProofVerified(poolId, verified);
 
