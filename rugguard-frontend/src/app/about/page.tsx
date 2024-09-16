@@ -28,7 +28,7 @@ const About: React.FC = () => {
         Built by <a href="https://twitter.com/0xPotatoofdoom" target="_blank" rel="noopener noreferrer">0xPotatoofdoom</a> and <a href="https://www.linkedin.com/in/rakshith-rajkumar/" target="_blank" rel="noopener noreferrer">rax909090</a>
       </p>
       <p className="mb-2 text-gray-800">
-        Rakshith Rajkumar is a graduate student at Northeastern University pursuing a Master's in Information Systems with a concentration in smart contracts and distributed ledgers. Potatoofdoom id s full stack dev with a passion for decentralized systems and digital assets.
+        Rakshith Rajkumar is a graduate student at Northeastern University pursuing a Master&apos;s in Information Systems with a concentration in smart contracts and distributed ledgers. Potatoofdoom id s full stack dev with a passion for decentralized systems and digital assets.
       </p>
       <p className="mb-2 text-gray-800">
         This project is not affiliated with Uniswap but uses Uniswap V4 hooks and was made as part of <a href="https://atrium.academy/uniswap" target="_blank" rel="noopener noreferrer">Atrium Academy</a>&apos;s 2nd cohort that was funded by grants from <a href="https://uniswap.org/grants/" target="_blank" rel="noopener noreferrer">Uniswap Foundation</a>.
