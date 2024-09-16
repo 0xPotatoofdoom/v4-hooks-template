@@ -22,11 +22,11 @@ import {MockEigenLayerStrategy} from "./mocks/MockEigenLayerStrategy.sol";
 import {MockBrevisVerifier} from "./mocks/MockBrevisVerifier.sol";
 import {MockChainlinkAggregator} from "./mocks/MockChainlinkAggregator.sol";
 
-import {console} from "forge-std/console.sol";
-
-/// @title RugGuardTest
-/// @notice Test contract for the RugGuard smart contract
-/// @dev This contract contains unit tests for the RugGuard functionality
+/**
+ * @title RugGuardTest
+ * @notice Test contract for the RugGuard smart contract
+ * @dev This contract contains unit tests for the RugGuard functionality
+ */
 contract RugGuardTest is Test, Fixtures {
     using EasyPosm for IPositionManager;
     using PoolIdLibrary for PoolKey;
@@ -41,13 +41,32 @@ contract RugGuardTest is Test, Fixtures {
     uint256 initialTokenId;
     PositionConfig config;
 
-    // Event definitions
+    /**
+     * @notice Emitted when liquidity changes in a pool
+     * @param poolId The ID of the pool
+     * @param liquidityDelta The change in liquidity
+     * @param newTotalLiquidity The new total liquidity after the change
+     */
     event LiquidityChanged(PoolId indexed poolId, int256 liquidityDelta, uint256 newTotalLiquidity);
+
+    /**
+     * @notice Emitted when the risk score of a pool is updated
+     * @param poolId The ID of the pool
+     * @param newRiskScore The new risk score
+     */
     event RiskScoreUpdated(PoolId indexed poolId, uint256 newRiskScore);
+
+    /**
+     * @notice Emitted when the liquidity change threshold is updated
+     * @param poolId The ID of the pool
+     * @param newThreshold The new threshold value
+     */
     event ThresholdUpdated(PoolId indexed poolId, uint256 newThreshold);
 
-    /// @notice Set up the test environment
-    /// @dev Deploys necessary contracts and initializes the test state
+    /**
+     * @notice Set up the test environment
+     * @dev Deploys necessary contracts and initializes the test state
+     */
     function setUp() public {
         deployFreshManagerAndRouters();
         deployMintAndApprove2Currencies();
@@ -100,8 +119,10 @@ contract RugGuardTest is Test, Fixtures {
         hook.setPriceFeed(address(token1), address(priceFeed1));
     }
 
-    /// @notice Test the initialization of the RugGuard contract
-    /// @dev Verifies that the initial state of the contract is set correctly
+    /**
+     * @notice Test the initialization of the RugGuard contract
+     * @dev Verifies that the initial state of the contract is set correctly
+     */
     function testInitialization() public {
         (, uint256 liquidityChangeThreshold, uint256 totalLiquidity, uint256 riskScore,,,) = hook.poolInfo(poolId);
 
@@ -110,8 +131,10 @@ contract RugGuardTest is Test, Fixtures {
         assertEq(riskScore, 45);
     }
 
-    /// @notice Test adding liquidity to the pool
-    /// @dev Verifies that liquidity addition updates the pool state correctly
+    /**
+     * @notice Test adding liquidity to the pool
+     * @dev Verifies that liquidity addition updates the pool state correctly
+     */
     function testLiquidityAddition() public {
         uint256 addAmount = 5 ether;
         (uint256 newTokenId,) = posm.mint(
@@ -138,8 +161,10 @@ contract RugGuardTest is Test, Fixtures {
         assertEq(riskScore, 40);
     }
 
-    /// @notice Test removing liquidity from the pool
-    /// @dev Verifies that liquidity removal updates the pool state correctly
+    /**
+     * @notice Test removing liquidity from the pool
+     * @dev Verifies that liquidity removal updates the pool state correctly
+     */
     function testLiquidityRemoval() public {
         (
             uint256 lastLiquidityChangeTimestamp,
@@ -178,8 +203,10 @@ contract RugGuardTest is Test, Fixtures {
         assertEq(finalRiskScore, initialRiskScore);
     }
 
-    /// @notice Test swapping with low risk
-    /// @dev Verifies that swaps are allowed when the pool risk is low
+    /**
+     * @notice Test swapping with low risk
+     * @dev Verifies that swaps are allowed when the pool risk is low
+     */
     function testSwapWithLowRisk() public {
         priceFeed0.setLatestAnswer(1000e8);
         priceFeed1.setLatestAnswer(1000e8);
@@ -189,10 +216,10 @@ contract RugGuardTest is Test, Fixtures {
         assertEq(int256(swapDelta.amount0()), amountSpecified);
     }
 
-    /// @notice Test swapping with high risk
-    /// @dev Verifies that swaps are prevented when the pool risk is high
     /**
-     * The test is working fine but unable to assertRevert since the error is wrapped inside other error calls made by uniswap
+     * @notice Test swapping with high risk
+     * @dev Verifies that swaps are prevented when the pool risk is high
+     * NOTE: The test is working fine but unable to assertRevert since the error is wrapped inside other error calls made by uniswap
      */
     function testSwapWithHighRisk() public {
         bytes32 slot = keccak256(abi.encode(poolId, uint256(3)));
@@ -203,8 +230,10 @@ contract RugGuardTest is Test, Fixtures {
         swap(key, zeroForOne, amountSpecified, ZERO_BYTES);
     }
 
-    /// @notice Test updating the liquidity change threshold
-    /// @dev Verifies that the liquidity change threshold can be updated correctly
+    /**
+     * @notice Test updating the liquidity change threshold
+     * @dev Verifies that the liquidity change threshold can be updated correctly
+     */
     function testLiquidityChangeThresholdUpdate() public {
         uint256 newThreshold = 20 ether;
         hook.setLiquidityChangeThreshold(key, newThreshold);
@@ -212,8 +241,10 @@ contract RugGuardTest is Test, Fixtures {
         assertEq(threshold, newThreshold);
     }
 
-    /// @notice Test EigenLayer integration
-    /// @dev Verifies that the EigenLayer strategy is called during a swap
+    /**
+     * @notice Test EigenLayer integration
+     * @dev Verifies that the EigenLayer strategy is called during a swap
+     */
     function testEigenLayerIntegration() public {
         bool zeroForOne = true;
         int256 amountSpecified = -1e18;
@@ -221,8 +252,10 @@ contract RugGuardTest is Test, Fixtures {
         assertTrue(eigenLayerStrategy.wasProcessOffChainComputationCalled());
     }
 
-    /// @notice Test Brevis integration
-    /// @dev Verifies that the Brevis proof verification works correctly
+    /**
+     * @notice Test Brevis integration
+     * @dev Verifies that the Brevis proof verification works correctly
+     */
     function testBrevisIntegration() public {
         bytes memory mockProof = abi.encodePacked("mock proof");
         uint256[] memory publicInputs = new uint256[](2);
@@ -234,8 +267,10 @@ contract RugGuardTest is Test, Fixtures {
         assertEq(riskScore, 60);
     }
 
-    /// @notice Test Chainlink integration
-    /// @dev Verifies that the Chainlink price feeds are used correctly during a swap
+    /**
+     * @notice Test Chainlink integration
+     * @dev Verifies that the Chainlink price feeds are used correctly during a swap
+     */
     function testChainlinkIntegration() public {
         priceFeed0.setLatestAnswer(1000e8);
         priceFeed1.setLatestAnswer(2000e8);
@@ -246,8 +281,10 @@ contract RugGuardTest is Test, Fixtures {
         assertEq(lastPrice, 5e17); // 1000 / 2000 * 1e18
     }
 
-    /// @notice Test the checkUpkeep function
-    /// @dev Verifies that the checkUpkeep function returns the correct result
+    /**
+     * @notice Test the checkUpkeep function
+     * @dev Verifies that the checkUpkeep function returns the correct result
+     */
     function testCheckUpkeep() public {
         // Set conditions for upkeep
         vm.warp(block.timestamp + 2 days);
@@ -258,8 +295,10 @@ contract RugGuardTest is Test, Fixtures {
         assertTrue(upkeepNeeded);
     }
 
-    /// @notice Test the performUpkeep function
-    /// @dev Verifies that the performUpkeep function executes correctly
+    /**
+     * @notice Test performUpkeep function
+     * @dev Verifies performUpkeep function executes correctly
+     */
     function testPerformUpkeep() public {
         // Set conditions for upkeep
         vm.warp(block.timestamp + 2 days);
