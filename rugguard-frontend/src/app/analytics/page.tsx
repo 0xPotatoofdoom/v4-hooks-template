@@ -29,7 +29,7 @@ const AnalyticsPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto p-4">
+    <div className="max-w-7xl mx-auto p-4 text-gray-800">
       <h2 className="text-2xl font-bold mb-4">Analytics Dashboard</h2>
       <div className="mb-4">
         <h3 className="text-xl font-semibold">Key Metrics</h3>
